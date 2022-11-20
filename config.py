@@ -14,7 +14,7 @@ def authentication():
      api = tweepy.API(auth)
      return api
 
-def ibm_api_key():
+def ibm_api_key() -> str:
      load_dotenv()
      api_key_ibm_cloud = os.environ.get("API_KEY_IBM_CLOUD")
-     return api_key_ibm_cloud
+     return api_key_ibm_cloud or ""

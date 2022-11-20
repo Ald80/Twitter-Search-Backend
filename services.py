@@ -1,30 +1,30 @@
 import re
-from typing import Dict, List, AnyStr
 from ibm_watson import NaturalLanguageUnderstandingV1, ApiException
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from ibm_watson.natural_language_understanding_v1 import Features, SentimentOptions
 from config import authentication, ibm_api_key
+from tweepy import TweepError
 
-def clean_tweet(tweet) -> AnyStr:
+def clean_tweet(tweet) -> str:
     text_cleaned: str = ' '.join(re.sub("(RT.@\S+|https?://\S+)|(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)",
                             "", tweet).split())
     text_cleaned = remove_special_characters(text_cleaned)    
     return text_cleaned
 
 def remove_special_characters(text: str):
-    text_filtred: str = re.sub(r'(\\u[0-9A-Fa-f]+)', lambda match_text: chr(int(match_text.group(0)[2:], 16)), text)
+    text_filtred: str = re.sub(r'(\\u[0-9A-Fa-f]+)', lambda match_text: chr(int(match_text.group(0)[2:] , 16)), text)
     return text_filtred
 
-def extract_sentimen_data(sentiment_dict):
-        dict_parsed = None
+def extract_sentimen_data(sentiment_dict: dict) -> dict:
+        dict_parsed: dict = {}
         if type(sentiment_dict) == dict:
             dict_parsed = sentiment_dict['sentiment']['document']
         return dict_parsed
 
-def generate_sentiment_data(tweet) -> Dict:
+def generate_sentiment_data(tweet):
     try:
         ibm_key = ibm_api_key()
-        authenticator = IAMAuthenticator(ibm_key)
+        authenticator = IAMAuthenticator(apikey=ibm_key)
         natural_language_understanding = NaturalLanguageUnderstandingV1(
             version='2022-04-07',
             authenticator=authenticator
@@ -39,12 +39,18 @@ def generate_sentiment_data(tweet) -> Dict:
     except ApiException as e:
         print(e.message)
 
-def search_tweet(query_content) -> List:
-    api = authentication()
-    tweets = api.search(q=query_content, tweet_mode='extended', count=100)
+def search_tweet(query_content: str):
+    tweets = None
+    try:
+        api = authentication()
+        filter_retweets = "-filter:retweets"
+        tweets = api.search(q=query_content+filter_retweets, tweet_mode='extended', count=100)
+    except TweepError as e:
+        print(e.response)
     return tweets
 
-def list_tweet_data(tweets) -> List:
+
+def list_tweet_data(tweets) -> list:
     tweets_list = []
 
     for tweet in tweets:
@@ -53,15 +59,12 @@ def list_tweet_data(tweets) -> List:
         tweet_full_text = tweet.full_text
         
         text_cleaned = clean_tweet(tweet_full_text)
-        sentiment_data = generate_sentiment_data(text_cleaned)
-        sentiment_document = extract_sentimen_data(sentiment_data)
+        # sentiment_data = generate_sentiment_data(text_cleaned)
+        # sentiment_document = extract_sentimen_data(sentiment_data)
 
+        parsed_tweet['full_text'] = tweet_full_text 
         parsed_tweet['full_text_cleaned'] = text_cleaned
-        parsed_tweet['sentiment'] = sentiment_document
+        # parsed_tweet['sentiment'] = sentiment_document
 
-        if tweet.retweet_count > 0:
-            if parsed_tweet not in tweets_list:
-                tweets_list.append(parsed_tweet)
-        else:
-            tweets_list.append(parsed_tweet)
+        tweets_list.append(parsed_tweet)
     return tweets_list
